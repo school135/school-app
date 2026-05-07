@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.secret_key = 'school-secret-key-change-me'
 
-ADMIN_PASSWORD = 'school2025'
+ADMIN_PASSWORD = 'school135_59'
 
 SLOTS = {
     "14 мая": ["14:00-14:15", "14:15-14:30", "14:30-14:45", "14:45-15:00", "15:00-15:15", "15:15-15:30", "15:30-15:45"],
