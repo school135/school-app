@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель школы — Записи на собеседование</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            padding: 20px;
+        }
+        .header {
+            background: #1a365d;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .header h1 { font-size: 20px; }
+        .header a { color: #bee3f8; text-decoration: none; font-size: 14px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #1a365d; color: white; font-weight: 600; }
+        tr:hover { background: #f7fafc; }
+        .delete-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .delete-btn:hover { background: #c53030; }
+        .empty { text-align: center; padding: 40px; color: #a0aec0; }
+        .stats {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: #1a365d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Записи на собеседование</h1>
+            <a href="/logout">🚪 Выйти</a>
+        </div>
+
+        <div class="stats">
+            Всего записей: {{ appointments|length }}
+        </div>
+
+        {% if appointments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Время</th>
+                    <th>ФИО ученика</th>
+                    <th>Школа</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in appointments %}
+                <tr>
+                    <td><strong>{{ a.date }}</strong></td>
+                    <td>{{ a.time }}</td>
+                    <td>{{ a.fio }}</td>
+                    <td>{{ a.school }}</td>
+                    <td>
+                        <form method="POST" action="/admin/delete/{{ a.id }}" style="display:inline;" onsubmit="return confirm('Удалить запись {{ a.fio }}?')">
+                            <button type="submit" class="delete-btn">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Пока нет записей</p>
+        {% endif %}
+
+        <div style="text-align:center;margin-top:20px;">
+            <a href="/" style="color:#1a365d;">← На страницу записи</a>
+        </div>
+    </div>
+</body>
+</html>
