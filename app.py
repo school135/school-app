@@ -54,7 +54,7 @@ def index():
     appointments = conn.execute('SELECT date, time, fio, school FROM appointments').fetchall()
     conn.close()
 
-        occupied = {}
+    occupied = {}
     for a in appointments:
         if a['date'] not in occupied:
             occupied[a['date']] = {}
@@ -66,6 +66,7 @@ def index():
             short_fio = '***'
         occupied[a['date']][a['time']] = {'fio': short_fio, 'school': a['school']}
 
+    return render_template('index.html', slots=SLOTS, occupied=occupied)
     return render_template('index.html', slots=SLOTS, occupied=occupied)
 @app.route('/book', methods=['POST'])
 def book():
