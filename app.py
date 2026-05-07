@@ -17,7 +17,7 @@ SLOTS = {
     "22 мая": ["17:00-17:15", "17:15-17:30", "17:30-17:45", "17:45-18:00", "18:00-18:15", "18:15-18:30", "18:30-18:45", "18:45-19:00"]
 }
 
-DB_PATH = '/home/scool135/mysite/school.db'
+DB_PATH = '/opt/render/project/src/school.db'
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
