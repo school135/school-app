@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime
 from functools import wraps
 import os
+import base64
 
 app = Flask(__name__)
 app.secret_key = 'school-secret-key-change-me'
@@ -18,7 +19,14 @@ SLOTS = {
 }
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'school.db')
-
+# Восстановление базы из резервной копии при деплое
+BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'school.db.b64')
+if not os.path.exists(DB_PATH) and os.path.exists(BACKUP_PATH):
+    with open(BACKUP_PATH, 'r') as f:
+        encoded = f.read().strip()
+    if encoded:
+        with open(DB_PATH, 'wb') as f:
+            f.write(base64.b64decode(encoded))
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -175,6 +183,18 @@ def logout():
 
 # Создаём таблицу при импорте
 init_db()
+
+# Автосохранение базы при выключении сервера
+import atexit
+
+def backup_db():
+    if os.path.exists(DB_PATH):
+        with open(DB_PATH, 'rb') as f:
+            data = f.read()
+        with open(BACKUP_PATH, 'w') as f:
+            f.write(base64.b64encode(data).decode())
+
+atexit.register(backup_db)
 
 if __name__ == '__main__':
     app.run(debug=True)
