@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: school-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    preDeployCommand: |
+      if [ -f /opt/render/project/src/school.db ]; then
+        base64 /opt/render/project/src/school.db > /opt/render/project/src/school.db.b64
+      fi
