@@ -1,14 +1,15 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import sqlite3
+import psycopg2
+import psycopg2.extras
 from datetime import datetime
 from functools import wraps
-import os
-import base64
 
 app = Flask(__name__)
 app.secret_key = 'school-secret-key-change-me'
 
-ADMIN_PASSWORD = 'school135_59'
+ADMIN_PASSWORD = 'school2025'
+
+DATABASE_URL = "postgresql://school:tIfprhxTB3xOuAuLcnHNGlKRsX1kpe41@dpg-d7v3e2btqb8s73fn38s0-a/school_db_1ytf"
 
 SLOTS = {
     "14 мая": ["14:00-14:15", "14:15-14:30", "14:30-14:45", "14:45-15:00", "15:00-15:15", "15:15-15:30", "15:30-15:45"],
@@ -18,25 +19,17 @@ SLOTS = {
     "22 мая": ["17:00-17:15", "17:15-17:30", "17:30-17:45", "17:45-18:00", "18:00-18:15", "18:15-18:30", "18:30-18:45", "18:45-19:00"]
 }
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'school.db')
-# Восстановление базы из резервной копии при деплое
-BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'school.db.b64')
-if not os.path.exists(DB_PATH) and os.path.exists(BACKUP_PATH):
-    with open(BACKUP_PATH, 'r') as f:
-        encoded = f.read().strip()
-    if encoded:
-        with open(DB_PATH, 'wb') as f:
-            f.write(base64.b64decode(encoded))
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
     return conn
 
 def init_db():
     conn = get_db()
-    conn.execute('''
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS appointments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             fio TEXT NOT NULL,
@@ -45,7 +38,7 @@ def init_db():
             UNIQUE(date, time)
         )
     ''')
-    conn.commit()
+    cur.close()
     conn.close()
 
 def login_required(f):
@@ -59,14 +52,16 @@ def login_required(f):
 @app.route('/')
 def index():
     conn = get_db()
-    appointments = conn.execute('SELECT date, time, fio, school FROM appointments').fetchall()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute('SELECT date, time, fio, school FROM appointments')
+    appointments = cur.fetchall()
+    cur.close()
     conn.close()
 
     occupied = {}
     for a in appointments:
         if a['date'] not in occupied:
             occupied[a['date']] = {}
-        # Скрываем ФИО: оставляем только первую букву фамилии + ***
         parts = a['fio'].split()
         if parts:
             short_fio = parts[0][0] + '***'
@@ -75,7 +70,7 @@ def index():
         occupied[a['date']][a['time']] = {'fio': short_fio, 'school': a['school']}
 
     return render_template('index.html', slots=SLOTS, occupied=occupied)
-    return render_template('index.html', slots=SLOTS, occupied=occupied)
+
 @app.route('/book', methods=['POST'])
 def book():
     date = request.form.get('date')
@@ -90,15 +85,18 @@ def book():
         return jsonify({'success': False, 'message': 'Неверный слот'})
 
     conn = get_db()
+    cur = conn.cursor()
     try:
-        conn.execute(
-            'INSERT INTO appointments (date, time, fio, school) VALUES (?, ?, ?, ?)',
+        cur.execute(
+            'INSERT INTO appointments (date, time, fio, school) VALUES (%s, %s, %s, %s)',
             (date, time, fio, school)
         )
-        conn.commit()
+        cur.close()
         conn.close()
         return jsonify({'success': True, 'message': 'Вы записаны!'})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        cur.close()
         conn.close()
         return jsonify({'success': False, 'message': 'Это время уже занято'})
 
@@ -110,16 +108,17 @@ def cancel():
         return jsonify({'success': False, 'message': 'Введите ФИО'})
 
     conn = get_db()
-    appointment = conn.execute(
-        'SELECT * FROM appointments WHERE fio = ?', (fio,)
-    ).fetchone()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute('SELECT * FROM appointments WHERE fio = %s', (fio,))
+    appointment = cur.fetchone()
 
     if not appointment:
+        cur.close()
         conn.close()
         return jsonify({'success': False, 'message': 'Запись не найдена'})
 
-    conn.execute('DELETE FROM appointments WHERE id = ?', (appointment['id'],))
-    conn.commit()
+    cur.execute('DELETE FROM appointments WHERE id = %s', (appointment['id'],))
+    cur.close()
     conn.close()
 
     return jsonify({
@@ -134,9 +133,10 @@ def my_booking():
         return jsonify({'success': False, 'message': 'Введите ФИО'})
 
     conn = get_db()
-    appointment = conn.execute(
-        'SELECT date, time, school FROM appointments WHERE fio = ?', (fio,)
-    ).fetchone()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute('SELECT date, time, school FROM appointments WHERE fio = %s', (fio,))
+    appointment = cur.fetchone()
+    cur.close()
     conn.close()
 
     if appointment:
@@ -161,9 +161,10 @@ def admin_login():
 @login_required
 def admin_panel():
     conn = get_db()
-    appointments = conn.execute(
-        'SELECT * FROM appointments ORDER BY date, time'
-    ).fetchall()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute('SELECT * FROM appointments ORDER BY date, time')
+    appointments = cur.fetchall()
+    cur.close()
     conn.close()
     return render_template('admin_panel.html', appointments=appointments)
 
@@ -171,8 +172,9 @@ def admin_panel():
 @login_required
 def admin_delete(id):
     conn = get_db()
-    conn.execute('DELETE FROM appointments WHERE id = ?', (id,))
-    conn.commit()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM appointments WHERE id = %s', (id,))
+    cur.close()
     conn.close()
     return redirect(url_for('admin_panel'))
 
@@ -181,20 +183,7 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# Создаём таблицу при импорте
 init_db()
-
-# Автосохранение базы при выключении сервера
-import atexit
-
-def backup_db():
-    if os.path.exists(DB_PATH):
-        with open(DB_PATH, 'rb') as f:
-            data = f.read()
-        with open(BACKUP_PATH, 'w') as f:
-            f.write(base64.b64encode(data).decode())
-
-atexit.register(backup_db)
 
 if __name__ == '__main__':
     app.run(debug=True)
