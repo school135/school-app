@@ -7,7 +7,7 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'school-secret-key-change-me'
 
-ADMIN_PASSWORD = 'school2025'
+ADMIN_PASSWORD = 'school135_59'
 
 DATABASE_URL = "postgresql://school:tIfprhxTB3xOuAuLcnHNGlKRsX1kpe41@dpg-d7v3e2btqb8s73fn38s0-a/school_db_1ytf"
 
